@@ -198,14 +198,15 @@ class SerialArm:
         if base and start_frame == 0:
             T = self.base
         else:
-            T = self.transforms[start_frame](q[start_frame])
+            T = np.eye(4)
 
         for i in range(start_frame, end_frame):
-            T *= self.transforms[i](q[i])
+            T = T @ self.transforms[i](q[i])
+            # Matrix multiplication
 
         if tip and end_frame == self.n:
-             T *= self.tip
-
+             T = T @ self.tip
+             
         return T
 
 if __name__ == "__main__":
