@@ -9,7 +9,7 @@ import sys
 sys.path.append("C:/Users/danie/Documents/School/MEEN537/HW")
 sys.path.append("/home/daniel/Documents/MEEN537/HW/")
 import kinematics as kin
-# from visualization import VizScene
+from visualization import VizScene
 import sympy as sp
 import numpy as np
 import time
@@ -63,7 +63,7 @@ viz.add_arm(arm, draw_frames=True)
 viz.update(qs=[q_set1])
 
 
-time_to_run = 30
+time_to_run = 300
 refresh_rate = 60
 
 for i in range(refresh_rate * time_to_run):
