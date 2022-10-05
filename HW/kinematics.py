@@ -205,7 +205,6 @@ class SerialArm:
 
         for i in range(start_frame, end_frame):
             T = T @ self.transforms[i](q[i])
-            # Matrix multiplication
 
         if tip and end_frame == self.n:
              T = T @ self.tip
@@ -232,26 +231,23 @@ class SerialArm:
             print(f"Index: {index}")
 
         J = np.zeros((6,self.n))
-
-        pe = self.fk(q, index=self.n, base=base, tip=tip)[:, [-1]][:3]
+        pe = self.fk(q, index=None, base=base, tip=tip)[:, [-1]][:3]
 
         for i in range(index):
             Trans = self.fk(q, index=i, base=base, tip=tip)
-            z0i_1 = Trans[[-2], :][0, :3].reshape(3,1)
+            z0i_1 = Trans[:, [-2]][:3]
 
             # check if joint is revolute
             if self.jt[i] == 'r':
                 joint_pos = Trans[:, [-1]][:3]
-                Jvi = np.cross(z0i_1.T, (pe-joint_pos).T).T
+                Jvi = np.cross(z0i_1,(pe-joint_pos),axis=0)
                 Jwi = z0i_1
-                J[:,i] = np.vstack((Jvi,Jwi)).T
-
             # if not assume joint is prismatic
             else:
                 Jvi = z0i_1
                 Jwi = np.array([[0],[0],[0]])
-                J[:,i] = np.vstack((Jvi,Jwi)).T
-
+                
+            J[:,i] = np.vstack((Jvi,Jwi)).T
         return J
 
 
