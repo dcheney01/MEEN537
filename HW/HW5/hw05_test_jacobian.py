@@ -53,37 +53,36 @@ print(J1)
 
 print("now look at the configuration of the arm for q_set1 to understand J")
 
-# # making a visualization
-# viz = VizScene()
+# making a visualization
+viz = VizScene()
 
-# # adding a SerialArm to the visualization, and telling it to draw the joint frames. 
-# viz.add_arm(arm, draw_frames=True)
+# adding a SerialArm to the visualization, and telling it to draw the joint frames. 
+viz.add_arm(arm, draw_frames=True)
 
-# # setting the joint angles to draw
-# viz.update(qs=[q_set1])
+# setting the joint angles to draw
+viz.update(qs=[q_set1])
 
 
-# time_to_run = 30
-# refresh_rate = 60
+time_to_run = 30
+refresh_rate = 60
 
-# for i in range(refresh_rate * time_to_run):
-#     viz.update()
-#     time.sleep(1.0/refresh_rate)
+for i in range(refresh_rate * time_to_run):
+    viz.update()
+    time.sleep(1.0/refresh_rate)
 
 
 print("from second set of q's, J is:")
 print(J2)
 
-# # updating position of the arm in visualization
-# viz.update(qs=[q_set2])
+# updating position of the arm in visualization
+viz.update(qs=[q_set2])
 
-# print("now look at the configuration of the arm for q_set2 to understand J")
-# for i in range(refresh_rate * time_to_run):
-#     viz.update()
-#     time.sleep(1.0/refresh_rate)
+print("now look at the configuration of the arm for q_set2 to understand J")
+for i in range(refresh_rate * time_to_run):
+    viz.update()
+    time.sleep(1.0/refresh_rate)
 
-# viz.close_viz()
-
+viz.close_viz()
    
 
 # %%

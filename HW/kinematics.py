@@ -48,7 +48,7 @@ class dh2AFunc:
 
                 return np.array([[cth, -sth*calpha, sth*salpha,  a*cth], 
                                  [sth, cth*calpha,  -cth*salpha, a*sth], 
-                                 [0,   alpha,       calpha,      d], 
+                                 [0,   salpha,       calpha,      d], 
                                  [0,   0,           0,           1]])
 
 
@@ -67,7 +67,7 @@ class dh2AFunc:
                 
                 return np.array([[cth, -sth*calpha, sth*salpha,  a*cth], 
                                  [sth, cth*calpha,  -cth*salpha, a*sth], 
-                                 [0,   alpha,       calpha,      d], 
+                                 [0,   salpha,       calpha,      d], 
                                  [0,   0,           0,           1]])
         self.A = A
 
@@ -201,7 +201,7 @@ class SerialArm:
         if base and start_frame == 0:
             T = self.base
         else:
-            T = np.eye(4)
+            T = eye
 
         for i in range(start_frame, end_frame):
             T = T @ self.transforms[i](q[i])
@@ -231,23 +231,27 @@ class SerialArm:
             print(f"Index: {index}")
 
         J = np.zeros((6,self.n))
-        pe = self.fk(q, index=None, base=base, tip=tip)[:, [-1]][:3]
+
+        # Get the last column and then the first 3 values from that column (position)
+        pe = self.fk(q, index=None, base=base, tip=tip)[0:3, 3]
 
         for i in range(index):
             Trans = self.fk(q, index=i, base=base, tip=tip)
-            z0i_1 = Trans[:, [-2]][:3]
+            # Get the second to last column and then the first 3 values from that column (rotation in z)
+            z0i_1 = Trans[0:3, 2]
 
             # check if joint is revolute
             if self.jt[i] == 'r':
-                joint_pos = Trans[:, [-1]][:3]
-                Jvi = np.cross(z0i_1,(pe-joint_pos),axis=0)
+                # Get the last column and then the first 3 values from that column (position)
+                joint_pos = Trans[0:3, 3]
+                Jvi = np.cross(z0i_1,(pe-joint_pos))
                 Jwi = z0i_1
             # if not assume joint is prismatic
             else:
                 Jvi = z0i_1
-                Jwi = np.array([[0],[0],[0]])
+                Jwi = np.array([0,0,0])
                 
-            J[:,i] = np.vstack((Jvi,Jwi)).T
+            J[:,i] = np.hstack((Jvi,Jwi))
         return J
 
 
@@ -259,14 +263,14 @@ if __name__ == "__main__":
     # The order of the DH parameters is [theta, d, a, alpha] - which is the order of operations. 
     # The symbolic joint variables "q" do not have to be explicitly defined here. 
     # This is a two link, planar robot arm with two revolute joints. 
-    dh = [[0, 0, 0.3, 0],
-          [0, 0, 0.3, 0]]
+    dh = [[0, 0, 1, 0],
+          [0, 0, 1, 0]]
 
     # make robot arm (assuming all joints are revolute)
     arm = SerialArm(dh)
 
     # defining joint configuration
-    q = [pi/4.0, pi/4.0]  # 45 degrees and 45 degrees
+    q = [0, np.pi/2]  # 45 degrees and 45 degrees
 
     # show an example of calculating the entire forward kinematics
     Tn_in_0 = arm.fk(q)
