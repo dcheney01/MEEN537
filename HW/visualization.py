@@ -460,16 +460,31 @@ class ArmMeshObject:
         if joint_colors is None:
             joint_colors = [dark_red] * self.n
 
-        self.frame_objects.append(FrameMeshObject())
+        dh_array = np.array(self.dh)
+        arm_scale = np.max([np.max(dh_array[0:,1:3]), 0.3])
+        frame_scale = 1.5
+        ee_scale = 2.0
+
+        self.frame_objects.append(FrameMeshObject(scale=arm_scale*frame_scale))
+
+        link_width = np.max([arm_scale, 0.10])*0.20
+        joint_width = np.max([arm_scale, 0.10])*0.30
+        joint_height = np.max([arm_scale, 0.10])*0.70
 
         for i in range(self.n):
+            if arm.jt[i] == 'p':
+                joint_colors[i] = np.array([0.0, 0.6, 0.0, 1.0])
             self.link_objects.append(LinkMeshObject(self.dh[i],
-                                     link_color=link_colors[i],
-                                     joint_color=joint_colors[i]))
-            self.frame_objects.append(FrameMeshObject())
+                                                    link_width=link_width,
+                                                    joint_width=joint_width,
+                                                    joint_height=joint_height,
+                                                    link_color=link_colors[i],
+                                                    joint_color=joint_colors[i]))
+            self.frame_objects.append(FrameMeshObject(scale=arm_scale*frame_scale))
 
-        self.ee_object = EEMeshObject()
-        self.frame_objects.append(FrameMeshObject())
+
+        self.ee_object = EEMeshObject(scale=arm_scale*ee_scale)
+        self.frame_objects.append(FrameMeshObject(scale=arm_scale*frame_scale))
 
         self.mesh = np.zeros((0, 3, 3))
         self.colors = np.zeros((0, 3, 4))
@@ -512,6 +527,7 @@ class ArmMeshObject:
         if self.draw_frames:
             meshes.append(self.frame_objects[-1].get_mesh(R, p))
             colors.append(self.frame_objects[-1].get_colors())
+
         meshes.append(self.ee_object.get_mesh(R, p))
         colors.append(self.ee_object.get_colors())
 
@@ -528,12 +544,12 @@ class LinkMeshObject:
                  link_color=None,
                  joint_color=None):
 
-        lw = link_width
-
-        d = dh[0]
-        theta = dh[1]
+        theta = dh[0]
+        d = dh[1]
         a = dh[2]
         alpha = dh[3]
+
+        lw = link_width
 
         w = joint_width
         h = joint_height
@@ -666,7 +682,7 @@ class FrameViz:
 
 
 class FrameMeshObject:
-    def __init__(self, scale=1, colors=[red, green, blue]):
+    def __init__(self, scale=1.0, colors=[red, green, blue]):
         a = 0.1 * scale
         b = 0.35 * scale
         self.points = np.array([[0, 0, 0],

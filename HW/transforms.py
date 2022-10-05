@@ -238,7 +238,6 @@ def q2R(q):
     Returns:
     R - a 3x3 numpy array 
     """
-    # TODO, extract the entries of q below, and then calculate R
     nu = q[0]
     ex = q[1]
     ey = q[2]

@@ -16,7 +16,6 @@ from transforms import *
 eye = np.eye(4)
 pi = np.pi
 
-
 class dh2AFunc:
     """
     A = dh2AFunc(dh, joint_type="r")
@@ -70,8 +69,6 @@ class dh2AFunc:
                                  [sth, cth*calpha,  -cth*salpha, a*sth], 
                                  [0,   alpha,       calpha,      d], 
                                  [0,   0,           0,           1]])
-
-
         self.A = A
 
 
@@ -120,6 +117,15 @@ class SerialArm:
         self.base = base
         self.tip = tip
         self.qlim = joint_limits
+
+        # required by the visualization for the arm
+        self.reach = 0
+        for i in range(self.n):
+            self.reach += np.sqrt(self.dh[i][0]**2 + self.dh[i][2]**2)
+
+        self.max_reach = 0.0
+        for dh in self.dh:
+            self.max_reach += norm(np.array([dh[0], dh[2]]))
 
     def __str__(self):
         """
@@ -192,9 +198,6 @@ class SerialArm:
             print(f"Starting frame: {start_frame}  Ending frame: {end_frame}")
             return None
 
-        # TODO complete each of the different cases below. If you don't like the 
-        # current setup (in terms of if/else statements) you can do your own thing.
-        # But the functionality should be the same. 
         if base and start_frame == 0:
             T = self.base
         else:
@@ -208,6 +211,49 @@ class SerialArm:
              T = T @ self.tip
              
         return T
+
+    def jacob(self, q, index=None, base=False, tip=False):
+        """
+        J = arm.jacob(q)
+        Description: 
+        Returns the geometric jacobian for the end effector frame of the arm in a given configuration
+
+        Parameters:
+        q - list or numpy array of joint positions
+        index - integer, which joint frame at which to calculate the Jacobian
+
+        Returns:
+        J - numpy matrix 6xN, geometric jacobian of the robot arm
+        """
+        if index is None:
+            index = self.n
+        elif index > self.n:
+            print("WARNING: Index greater than number of joints!")
+            print(f"Index: {index}")
+
+        J = np.zeros((6,self.n))
+
+        pe = self.fk(q, index=self.n, base=base, tip=tip)[:, [-1]][:3]
+
+        for i in range(index):
+            Trans = self.fk(q, index=i, base=base, tip=tip)
+            z0i_1 = Trans[[-2], :][0, :3].reshape(3,1)
+
+            # check if joint is revolute
+            if self.jt[i] == 'r':
+                joint_pos = Trans[:, [-1]][:3]
+                Jvi = np.cross(z0i_1.T, (pe-joint_pos).T).T
+                Jwi = z0i_1
+                J[:,i] = np.vstack((Jvi,Jwi)).T
+
+            # if not assume joint is prismatic
+            else:
+                Jvi = z0i_1
+                Jwi = np.array([[0],[0],[0]])
+                J[:,i] = np.vstack((Jvi,Jwi)).T
+
+        return J
+
 
 if __name__ == "__main__":
     from visualization import VizScene
@@ -236,18 +282,20 @@ if __name__ == "__main__":
 
     print(arm)
 
-    viz = VizScene()
+    print(arm.jacob(q))
 
-    viz.add_frame(arm.base, label='base')
-    viz.add_frame(Tn_in_0, label="Tn_in_0")
-    viz.add_frame(T1_in_0, label="T1_in_0")
+    # viz = VizScene()
 
-    time_to_run = 30
-    refresh_rate = 60
+    # viz.add_frame(arm.base, label='base')
+    # viz.add_frame(Tn_in_0, label="Tn_in_0")
+    # viz.add_frame(T1_in_0, label="T1_in_0")
 
-    for i in range(refresh_rate * time_to_run):
-        viz.update()
-        time.sleep(1.0/refresh_rate)
+    # time_to_run = 30
+    # refresh_rate = 60
+
+    # for i in range(refresh_rate * time_to_run):
+    #     viz.update()
+    #     time.sleep(1.0/refresh_rate)
     
-    viz.close_viz()
+    # viz.close_viz()
     
