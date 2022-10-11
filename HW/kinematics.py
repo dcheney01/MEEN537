@@ -379,8 +379,8 @@ class SerialArm:
             if method == 'J_T':
                 qdot = J.T @ (K @ e)
             elif method == 'pinv':
-                J_dag = J.T @ np.linalg.inv(J @ J.T + K)
-                qdot = J_dag @ e
+                J_dag = J.T @ np.linalg.inv(J @ J.T + (kd**2 * np.eye(3)))
+                qdot = J_dag @ (K @ e)
                 
             else:
                 print("Method Not Recognized")
