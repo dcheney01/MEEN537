@@ -25,6 +25,7 @@ dark_green = np.array([0, 0.3, 0, 1])
 dark_blue = np.array([0, 0, 0.3, 1])
 white = np.array([1, 1, 1, 1])
 grey = np.array([0.3, 0.3, 0.3, 1])
+yellow = np.array([223.0/255.0, 238.0/255.0, 95.0/255.0, 1.0])
 
 class TransformMPL:
 
@@ -187,6 +188,7 @@ class VizScene:
         self.arms = []
         self.frames = []
         self.markers = []
+        self.obstacles = []
         self.range = 5
 
         if QApplication.instance() is None:
@@ -283,6 +285,39 @@ class VizScene:
             print("Warning: invalid index entered!")
             return None
         self.app.processEvents()
+
+    def add_obstacle(self, pos, color=yellow, rad = 1.0):
+        if not isinstance(pos, (np.ndarray)):
+            pos = np.array(pos)
+
+        mobst = gl.MeshData.sphere(rows=20, cols=20, radius=rad)
+
+        m1 = gl.GLMeshItem(
+            meshdata=mobst,
+            smooth=True,
+            color=yellow,
+            shader="shaded",
+            glOptions="additive",
+        )
+        m1.translate(*pos)
+
+        self.obstacles.append(m1)
+        self.window.addItem(self.obstacles[-1])
+
+        self.app.processEvents()
+
+    def remove_obstacle(self, ind=None):
+        if ind is None:
+            for obstacle in self.obstacles:
+                self.window.removeItem(obstacle)
+            self.obstacles = []
+        elif isinstance(ind, (int)):
+            self.window.removeItem(self.obstacles[ind])
+            self.obstacles.pop(ind)
+        else:
+            print("Warning: invalid index entered!")
+            return None
+        self.app.processEvents()        
 
     def update(self, qs=None, As=None, poss=None):
         if qs is not None:
