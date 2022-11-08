@@ -15,10 +15,10 @@ import sys
 sys.path.append("C:/Users/danie/Documents/School/MEEN537/HW")
 sys.path.append("/home/daniel/Documents/MEEN537/HW/")
 from transforms import *
+from utility import skew
 
 eye = np.eye(4)
 pi = np.pi
-
 
 class dh2AFunc:
     """
@@ -394,6 +394,42 @@ class SerialArm:
         # viz.hold()
 
         return (q, e, count, count < max_iter, 'No errors noted')
+
+    def Z_shift(self, R=np.eye(3), p=np.zeros(3,), p_frame='i'):
+
+            """
+            Z = Z_shift(R, p, p_frame_order)
+            Description: 
+                Generates a shifting operator (rotates and translates) to move twists and Jacobians 
+                from one point to a new point defined by the relative transform R and the translation p. 
+
+            Parameters:
+                R - 3x3 numpy array, frame i expressed in frame j (e.g. R^j_i), will rotate twist or jacobian from frame i to frame j. 
+                p - 3x1 numpy array or list, is the translation from the initial twist or jacobian location to 
+                        the final point, expressed in the frame as described by the next variable.
+                p_frame - is either 'i' or 'j', this allows us to define if "p" is expressed in 
+                        frame "i" or "j", and where the skew symmetrics matrix should show up. 
+
+            Returns:
+                Z - 6x6 numpy array, can be used to shift a Jacobian, or a twist
+            """
+            # generate our skew matrix
+            S = skew(p)
+
+            eye3 = np.eye(3)
+            zeros = np.zeros(eye3.shape)
+
+            if p_frame == 'i':
+                Z = np.block([[eye3, -S], [zeros, eye3]]) @ \
+                        np.block([[R, zeros], [zeros, R]])
+            elif p_frame == 'j':
+                Z = np.block([[R, zeros], [zeros, R]]) @ \
+                    np.block([[eye3, -S], [zeros, eye3]])
+            else:
+                # Z = None
+                pass
+
+            return Z
 
 
 if __name__ == "__main__":
