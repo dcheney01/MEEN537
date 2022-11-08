@@ -244,8 +244,6 @@ class SerialArm:
         Returns:
         J - numpy matrix 6xN, geometric jacobian of the robot arm
         """
-
-
         if index is None:
             index = self.n
         elif index > self.n:

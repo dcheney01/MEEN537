@@ -86,18 +86,17 @@ class SerialArmDyn(SerialArm):
 
         ## Solve for needed angular velocities, angular accelerations, and linear accelerations
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
-        for i in range(0, self.n):
-            self.fk(q[i])
-            R_i_i1 = 
-            R_i0 = 
-            z_0_i1 = 
+        for i in range(1, self.n):
+            R_i_i1 = self.fk(q, index=(i-1, i))[:3, :3]
+            R_i0 = self.fk(q, index=i)[:3, :3]
+            z_0_i1 = self.fk(q, index=i-1)[:3,2]
             z = R_i0 @ z_0_i1
-            r_c = 
-            r_e = 
+            r_c = self.r_com[i]
+            r_e = self.r_com[i] * 2
             # g_i = R_i0 @ g
 
-            w = (R_i_i1 @ omegas[-1]) + (z @ qd[i])
-            alph = (R_i_i1 @ alphas[-1]) + (z @ qdd[i]) + np.cross(w, (z @ qd[i]))
+            w = (R_i_i1 @ omegas[-1]).flatten() + (z * qd[i])
+            alph = (R_i_i1 @ alphas[-1]).flatten() + (z * qdd[i]) + np.cross(w, (z * qd[i]))
             a_c = R_i_i1 @ acc_ends[-1] + np.cross(alph, r_c) + np.cross(w, np.cross(w, r_c))
             a_e = R_i_i1 @ acc_ends[-1] + np.cross(alph, r_e) + np.cross(w, np.cross(w, r_e))
 
@@ -106,8 +105,8 @@ class SerialArmDyn(SerialArm):
             alphas.append(alph)
             acc_coms.append(a_c)
             acc_ends.append(a_e)
-            pass
 
+        print(acc_ends)
         ## Now solve Kinetic equations by starting with forces at last link and going backwards
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         Wrenches = [np.zeros((6,1))] * (self.n + 1)
