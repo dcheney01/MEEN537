@@ -86,26 +86,36 @@ class SerialArmDyn(SerialArm):
 
         ## Solve for needed angular velocities, angular accelerations, and linear accelerations
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
-        for i in range(1, self.n):
+        
+        for i in range(1, self.n+1):
+            frame_ind = i
+            jt_ind = i-1
+
             R_i_i1 = self.fk(q, index=(i-1, i))[:3, :3]
             R_i0 = self.fk(q, index=i)[:3, :3]
             z_0_i1 = self.fk(q, index=i-1)[:3,2]
             z = R_i0 @ z_0_i1
-            r_c = self.r_com[i]
-            r_e = self.r_com[i] * 2
-            # g_i = R_i0 @ g
 
-            w = (R_i_i1 @ omegas[-1]).flatten() + (z * qd[i])
-            alph = (R_i_i1 @ alphas[-1]).flatten() + (z * qdd[i]) + np.cross(w, (z * qd[i]))
-            a_c = R_i_i1 @ acc_ends[-1] + np.cross(alph, r_c) + np.cross(w, np.cross(w, r_c))
-            a_e = R_i_i1 @ acc_ends[-1] + np.cross(alph, r_e) + np.cross(w, np.cross(w, r_e))
+            r_c = self.r_com[jt_ind]
+            r_e = self.r_com[jt_ind] * 2
 
+
+            zqd = (z * qd[jt_ind])
+            Racc_i1 = R_i_i1 @ acc_ends[-1].flatten()
+
+            w = (R_i_i1 @ omegas[-1]).flatten() + zqd
+            alph = (R_i_i1 @ alphas[-1]).flatten() + (z * qdd[jt_ind]) + np.cross(w, zqd)
+            a_c = Racc_i1 + np.cross(alph, r_c) + np.cross(w, np.cross(w, r_c))
+            a_e =Racc_i1 + np.cross(alph, r_e) + np.cross(w, np.cross(w, r_e))
 
             omegas.append(w)
             alphas.append(alph)
             acc_coms.append(a_c)
             acc_ends.append(a_e)
 
+        omegas = omegas[1:]
+        alphas = alphas[1:]
+        acc_ends = acc_ends[1:]
         print(acc_ends)
         ## Now solve Kinetic equations by starting with forces at last link and going backwards
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
