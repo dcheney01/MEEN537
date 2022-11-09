@@ -87,43 +87,69 @@ class SerialArmDyn(SerialArm):
         ## Solve for needed angular velocities, angular accelerations, and linear accelerations
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         
-        for i in range(1, self.n+1):
-            frame_ind = i
-            jt_ind = i-1
+        for i in range(0, self.n):
+            T_i1_i = self.fk(q, index=(i, i+1))
+            R_i_i1 = T_i1_i[:3, :3].T
+            z = R_i_i1[:, -1].flatten()
 
-            R_i_i1 = self.fk(q, index=(i-1, i))[:3, :3]
-            R_i0 = self.fk(q, index=i)[:3, :3]
-            z_0_i1 = self.fk(q, index=i-1)[:3,2]
-            z = R_i0 @ z_0_i1
+            # R_i0 = self.fk(q, index=jt_ind+1)[:3, :3].T # this does not get the first ac right
+            R_i0 = self.fk(q, index=i)[:3, :3].T
 
-            r_c = self.r_com[jt_ind]
-            r_e = self.r_com[jt_ind] * 2
+            r_c = R_i0 @ self.r_com[i]
+            r_e = R_i0 @ (self.r_com[i] * 2)
 
+            # r_c = T_i1_i[:3, -1]/2
+            # r_e = T_i1_i[:3, -1]
 
-            zqd = (z * qd[jt_ind])
+            # Intermediate Helper Variables
+            zqd = (z * qd[i])
+            zqdd = (z * qdd[i])
             Racc_i1 = R_i_i1 @ acc_ends[-1].flatten()
 
             w = (R_i_i1 @ omegas[-1]).flatten() + zqd
-            alph = (R_i_i1 @ alphas[-1]).flatten() + (z * qdd[jt_ind]) + np.cross(w, zqd)
-            a_c = Racc_i1 + np.cross(alph, r_c) + np.cross(w, np.cross(w, r_c))
-            a_e =Racc_i1 + np.cross(alph, r_e) + np.cross(w, np.cross(w, r_e))
+            alph = (R_i_i1 @ alphas[-1]).flatten() + zqdd + np.cross(w, zqd)
+            ac = Racc_i1 + np.cross(alph, r_c) + np.cross(w, np.cross(w, r_c))
+            ae = Racc_i1 + np.cross(alph, r_e) + np.cross(w, np.cross(w, r_e))
 
             omegas.append(w)
             alphas.append(alph)
-            acc_coms.append(a_c)
-            acc_ends.append(a_e)
+            acc_coms.append(ac)
+            acc_ends.append(ae)
 
         omegas = omegas[1:]
         alphas = alphas[1:]
         acc_ends = acc_ends[1:]
-        print(acc_ends)
+        print(acc_coms)
+        # print(acc_ends)
+
+
         ## Now solve Kinetic equations by starting with forces at last link and going backwards
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         Wrenches = [np.zeros((6,1))] * (self.n + 1)
         tau = [0] * self.n
 
-        for i in range(self.n - 1, -1, -1):  # Index from n-1 to 0
-            pass
+        # for i in range(self.n - 1, -1, -1):  # Index from n-1 to 0
+
+        #     R_i_i1 = self.fk(q, index=(i, i+1))[:3, :3]
+        #     g = self.fk(q, index=i)[:3, :3] @ np.array([0, -9.81, 0])
+
+        #     r_c = R_i0 @ self.r_com[jt_ind]
+        #     r_c1 = 
+
+        #     r_c = R_i0 @ self.r_com[jt_ind]
+        #     r_e = R_i0 @ (self.r_com[jt_ind] * 2)
+
+
+        #     w = omegas[i]
+        #     I = self.link_inertia[i]
+
+        #     f1 = Wrenches[:3, i+1]
+        #     f = R_i_i1 @ f1 - self.mass[i] * (g + acc_coms[i])
+
+        #     tau[i] = R_i_i1 @ tau[i+1] - np.cross(f, r_c1) + np.cross(R_i_i1 @ f1, r_c) \
+        #                 + I @ alphas[i] + np.cross(w, I @ w)
+
+        #     Wrenches[i] = np.vstack(f, tau[i])
             
         return tau, Wrenches
 

@@ -17,10 +17,7 @@ jt_types = ['r'] * n
 link_mass = [1] * n   # kg per link
 r_coms = [np.array([0.2, 0, 0])] * n
 Izz = 0.01
-
-link_inertias = []
-for i in range(n):
-      link_inertias.append(np.array([[0, 0, 0], [0, 0, 0], [0, 0, Izz]]))
+link_inertias = [np.array([[0, 0, 0], [0, 0, 0], [0, 0, Izz]])] * n
 
 arm = dyn.SerialArmDyn(dh,
                         jt=jt_types,
