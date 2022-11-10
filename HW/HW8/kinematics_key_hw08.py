@@ -11,14 +11,11 @@ modified by:
 Marc Killpack, Sept 21, 2022
 """
 
-import sys
-sys.path.append("C:/Users/danie/Documents/School/MEEN537/HW")
-sys.path.append("/home/daniel/Documents/MEEN537/HW/")
-from transforms import *
-from utility import skew
+from transforms_key_hw04 import *
 
 eye = np.eye(4)
 pi = np.pi
+
 
 class dh2AFunc:
     """
@@ -101,7 +98,7 @@ class SerialArm:
     def __init__(self, dh, jt=None, base=eye, tip=eye, joint_limits=None):
         """
         arm = SerialArm(dh, joint_type, base=I, tip=I, radians=True, joint_limits=None)
-        :param dh: n length list or iterable of length 4 list or iterables representing dh parameters, [d theta a alpha]
+        :param dh: n length list or iterable of length 4 list or iterables representing dh parameters, [theta d a alpha]
         :param jt: n length list or iterable of strings, 'r' for revolute joint and 'p' for prismatic joint
         :param base: 4x4 numpy or sympy array representing SE3 transform from world frame to frame 0
         :param tip: 4x4 numpy or sympy array representing SE3 transform from frame n to tool frame
@@ -138,11 +135,11 @@ class SerialArm:
         # calculating rough numbers to understand the workspace for drawing the robot
         self.reach = 0
         for i in range(self.n):
-            self.reach += np.sqrt(self.dh[i][0]**2 + self.dh[i][2]**2)
+            self.reach += np.sqrt(self.dh[i][1]**2 + self.dh[i][2]**2)
 
         self.max_reach = 0.0
         for dh in self.dh:
-            self.max_reach += norm(np.array([dh[0], dh[2]]))
+            self.max_reach += norm(np.array([dh[1], dh[2]]))
 
 
 
@@ -217,6 +214,9 @@ class SerialArm:
             print(f"Starting frame: {start_frame}  Ending frame: {end_frame}")
             return None
 
+        # TODO complete each of the different cases below. If you don't like the 
+        # current setup (in terms of if/else statements) you can do your own thing.
+        # But the functionality should be the same. 
         if base and start_frame == 0:
             T = self.base
         else:
@@ -244,6 +244,8 @@ class SerialArm:
         Returns:
         J - numpy matrix 6xN, geometric jacobian of the robot arm
         """
+
+
         if index is None:
             index = self.n
         elif index > self.n:
@@ -322,7 +324,7 @@ class SerialArm:
             q = np.array(q0)
 
         # initializing some variables in case checks below don't work
-        e = 0
+        error = None
         count = 0
 
         # Try basic check for if the target is in the workspace.
@@ -336,98 +338,89 @@ class SerialArm:
 
         if target_distance > maximum_reach and not force:
             print("WARNING: Target outside of reachable workspace!")
-            return q, e, count, False, "Failed: Out of workspace"
+            return q, error, count, False, "Failed: Out of workspace"
         else:
             if target_distance > maximum_reach:
                 print("Target out of workspace, but finding closest solution anyway")
             else:
-                pass
-                # print("Target passes naive reach test, distance is {:.1} and max reach is {:.1}".format(
-                #     float(target_distance), float(maximum_reach)))
+                print("Target passes naive reach test, distance is {:.1} and max reach is {:.1}".format(
+                    float(target_distance), float(maximum_reach)))
 
         if not isinstance(K, np.ndarray):
-            return q, e, count, False,  "No gain matrix 'K' provided"
+            return q, error, count, False,  "No gain matrix 'K' provided"
 
-        def getError(target, q):
-            return target - self.fk(q)[:3, -1]
+        count = 0
 
-        # Code to animate arm while solving IK
-        # dh = [[0, 0.2, 0, -np.pi/2.0],
-        #     [0, 0, 0.2, 0],
-        #     [np.pi/2, 0, 0, np.pi/2.0],
-        #     [np.pi/2, 0.4, 0, -np.pi/2.0],
-        #     [0, 0, 0, np.pi/2.0],
-        #     [0, 0.4, 0, 0],]
-        # jt_types = ['r', 'r', 'r', 'r', 'r', 'r']
-        # arm = SerialArm(dh, jt=jt_types)
-        # from visualization import VizScene
-        # viz = VizScene()
-        # viz.add_arm(arm)
-        # viz.add_marker(target)
+        def get_error(q):
+            cur_position = self.fk(q)
+            e = target - cur_position[0:3, 3]
+            return e
 
+        def get_jacobian(q):
+            J = self.jacob(q)
+            return J[0:3, :]
 
-        while np.linalg.norm(getError(target, q)) > tol and count < max_iter:
-            #Find the error
-            e = getError(target, q)
-            
-            # Find qdot
-            J = self.jacob(q)[:3, :]
+        def get_jdag(J):
+            Jdag = J.T @ np.linalg.inv(J @ J.T + np.eye(3) * kd**2)
+            return Jdag
+
+        e = get_error(q)
+
+        while np.linalg.norm(e) > tol and count < max_iter:
+            count = count + 1
+            J = get_jacobian(q) 
+
             if method == 'J_T':
-                qdot = J.T @ (K @ e)
+                qdelta = J.T @ K @ e 
             elif method == 'pinv':
-                J_dag = J.T @ np.linalg.inv(J @ J.T + (kd**2 * np.eye(3)))
-                qdot = J_dag @ (K @ e)
-                
+                Jdag = get_jdag(J)
+                qdelta = Jdag @ K @ e
             else:
-                print("Method Not Recognized")
-
-            # Now take a step
+                return q, False, "that method is not implemented"
+            
             # here we assume that delta_t has been included in the gain matrix K. 
-            q = q + qdot
-            # viz.update(qs = [q]) # ONly needed when animating
-            count += 1
+            q = q + qdelta
+            e = get_error(q)
+            print("error is: ", np.linalg.norm(e), "\t count is: ", count)
 
-        # ONLY NEEDED WHEN ANIMATING
-        # print("Finished the loop")
-        # viz.hold()
+        return (q, e, count, count < max_iter, 'No errors noted, all clear')
 
-        return (q, e, count, count < max_iter, 'No errors noted')
 
     def Z_shift(self, R=np.eye(3), p=np.zeros(3,), p_frame='i'):
 
-            """
-            Z = Z_shift(R, p, p_frame_order)
-            Description: 
-                Generates a shifting operator (rotates and translates) to move twists and Jacobians 
-                from one point to a new point defined by the relative transform R and the translation p. 
+        """
+        Z = Z_shift(R, p, p_frame_order)
+        Description: 
+            Generates a shifting operator (rotates and translates) to move twists and Jacobians 
+            from one point to a new point defined by the relative transform R and the translation p. 
 
-            Parameters:
-                R - 3x3 numpy array, frame i expressed in frame j (e.g. R^j_i), will rotate twist or jacobian from frame i to frame j. 
-                p - 3x1 numpy array or list, is the translation from the initial twist or jacobian location to 
-                        the final point, expressed in the frame as described by the next variable.
-                p_frame - is either 'i' or 'j', this allows us to define if "p" is expressed in 
-                        frame "i" or "j", and where the skew symmetrics matrix should show up. 
+        Parameters:
+            R - 3x3 numpy array, expresses frame "i" in frame "j" (e.g. R^j_i)
+            p - 3x1 numpy array length 3 iterable, the translation from the initial Jacobian point to the final point, expressed in the frame as described by the next variable.
+            p_frame - is either 'i', or 'j'. Allows us to define if "p" is expressed in frame "i" or "j", and where the skew symmetrics matrix should show up. 
 
-            Returns:
-                Z - 6x6 numpy array, can be used to shift a Jacobian, or a twist
-            """
-            # generate our skew matrix
-            S = skew(p)
+        Returns:
+            Z - 6x6 numpy array, can be used to shift a Jacobian, or a twist
+        """
+        from scipy.linalg import block_diag
 
-            eye3 = np.eye(3)
-            zeros = np.zeros(eye3.shape)
+        def skew(p):
+            return np.array([[0, -p[2], p[1]], [p[2], 0, -p[0]], [-p[1], p[0], 0]])
+        
+        # generate our skew matrix
+        S = skew(p)
+        buf = np.eye(6)
+        buf[0:3,3:] = -S
 
-            buf = np.block([[eye3, -S], [zeros, eye3]])
-            R = np.block([[R, zeros], [zeros, R]])
+        if p_frame == 'i':
+            Z = block_diag(R, R) @ buf
+        elif p_frame == 'j':
+            Z = buf @ block_diag(R, R)
+        else:
+            Z = None
 
-            if p_frame == 'i':
-                Z = R @ buf
-            elif p_frame == 'j':
-                Z = buf @ R
-            else:
-                Z = None
+        return Z
 
-            return Z
 
 
 if __name__ == "__main__":
