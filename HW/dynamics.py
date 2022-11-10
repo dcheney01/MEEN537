@@ -49,8 +49,8 @@ class SerialArmDyn(SerialArm):
             self.B = np.diag(joint_damping)
 
     def rne(self, q, qd, qdd, 
-            Wext=np.zeros((6,)),
-            g=np.zeros((3, 1)),
+            Wext=np.zeros((6,1)),
+            g=np.zeros((3, )),
             omega_base=np.zeros((3, 1)),
             alpha_base=np.zeros((3, 1)),
             v_base=np.zeros((3, 1)),
@@ -113,13 +113,13 @@ class SerialArmDyn(SerialArm):
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         for i in range(0, self.n):
             if i == 0:  # If this is the first link instead of using the previous values we use the movement of the base
-                w_prev = Rs[i].T @ omega_base
-                alph_prev = Rs[i].T @ alpha_base
-                a_prev = Rs[i].T @ acc_base
+                w_prev = (Rs[i].T @ omega_base).flatten()
+                alph_prev = (Rs[i].T @ alpha_base).flatten()
+                a_prev = (Rs[i].T @ acc_base).flatten()
             else:  # Else, we just transform the values from the previous step
-                w_prev = Rs[i].T @ omegas[i-1]
-                alph_prev = Rs[i].T @ alphas[i-1]
-                a_prev = Rs[i].T @ acc_ends[i-1]
+                w_prev = (Rs[i].T @ omegas[i-1]).flatten()
+                alph_prev = (Rs[i].T @ alphas[i-1]).flatten()
+                a_prev = (Rs[i].T @ acc_ends[i-1]).flatten()
 
             # Find kinematics of the current link
             if self.jt[i] == 'r':
@@ -147,13 +147,13 @@ class SerialArmDyn(SerialArm):
 
                 # These are both positive assuming that we know the force applied to our end effector. If the
                 # wrench is what our robot is applying to the world, we need to negate these or Wext.
-                f_prev = Rn_0 @ Wext[0:3]  
-                M_prev = Rn_0 @ Wext[3:]  
+                f_prev = (Rn_0 @ Wext[0:3]).flatten()
+                M_prev = (Rn_0 @ Wext[3:]).flatten()
                 g_cur = Rn_0 @ g  # Convert the gravity to the right frame
             else:  # Use the previous forces in this case
                 Ri_0 = R0s[i].T
-                f_prev = Rs[i+1] @ Wrenches[0:3,i+1]
-                M_prev = Rs[i+1] @ Wrenches[3:,i+1]
+                f_prev = (Rs[i+1] @ Wrenches[0:3,i+1]).flatten()
+                M_prev = (Rs[i+1] @ Wrenches[3:,i+1]).flatten()
                 g_cur = Ri_0 @ g
 
             # Sum of forces and mass * acceleration to find forces

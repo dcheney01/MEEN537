@@ -31,7 +31,8 @@ q = [np.pi/4.0]*n
 qd = [np.pi/6, -np.pi/4, np.pi/3]
 qdd = [-np.pi/6, np.pi/3, np.pi/6]
 
-
+tau, _ = arm.rne(q, qd, qdd, g=g)
+print(f"tau for part a: {tau}")
 
 # # Problem 3, part b)
 M = np.zeros((arm.n, arm.n))
