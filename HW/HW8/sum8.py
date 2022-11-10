@@ -15,7 +15,7 @@ dh = [[0, 0, 0.4, 0],
 n = 3
 jt_types = ['r'] * n
 link_mass = [1] * n   # kg per link
-r_coms = [np.array([0.2, 0, 0])] * n
+r_coms = [np.array([-0.2, 0, 0])] * n
 Izz = 0.01
 link_inertias = [np.array([[0, 0, 0], [0, 0, 0], [0, 0, Izz]])] * n
 
@@ -25,7 +25,20 @@ arm = dyn.SerialArmDyn(dh,
                         r_com=r_coms,
                         link_inertia=link_inertias)
 
+g = np.array([0, -9.81, 0])
+
 q = [np.pi/4.0]*n
 qd = [np.pi/6, -np.pi/4, np.pi/3]
 qdd = [-np.pi/6, np.pi/3, np.pi/6]
-arm.rne(q, qd, qdd)
+tau, Wrench = arm.rne(q, qd, qdd, g=g)
+
+print(Wrench[:3, :])
+
+qd = [0] * 3
+# qdd = [1] * 3
+
+# tau, Wrench = arm.rne(q, qd, qdd, g=g)
+# print(tau)
+
+# M = np.asarray(tau) / np.asarray(qdd).reshape(3,1)
+# print(M)

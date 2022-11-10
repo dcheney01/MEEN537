@@ -14,8 +14,10 @@ Marc Killpack, October 25, 2022
 import numpy as np
 from kinematics import SerialArm
 from utility import skew
+import transforms as tr
 
 eye = np.eye(4)
+
 
 class SerialArmDyn(SerialArm):
     """
@@ -47,7 +49,7 @@ class SerialArmDyn(SerialArm):
             self.B = np.diag(joint_damping)
 
     def rne(self, q, qd, qdd, 
-            Wext=np.zeros((6,1)),
+            Wext=np.zeros((6,)),
             g=np.zeros((3, 1)),
             omega_base=np.zeros((3, 1)),
             alpha_base=np.zeros((3, 1)),
@@ -91,15 +93,10 @@ class SerialArmDyn(SerialArm):
             T_i1_i = self.fk(q, index=(i, i+1))
             R_i_i1 = T_i1_i[:3, :3].T
             z = R_i_i1[:, -1].flatten()
+            p = T_i1_i[:3, -1]
 
-            # R_i0 = self.fk(q, index=jt_ind+1)[:3, :3].T # this does not get the first ac right
-            R_i0 = self.fk(q, index=i)[:3, :3].T
-
-            r_c = R_i0 @ self.r_com[i]
-            r_e = R_i0 @ (self.r_com[i] * 2)
-
-            # r_c = T_i1_i[:3, -1]/2
-            # r_e = T_i1_i[:3, -1]
+            r_e = R_i_i1 @ p
+            r_c = r_e + self.r_com[i]
 
             # Intermediate Helper Variables
             zqd = (z * qd[i])
@@ -119,38 +116,47 @@ class SerialArmDyn(SerialArm):
         omegas = omegas[1:]
         alphas = alphas[1:]
         acc_ends = acc_ends[1:]
-        print(acc_coms)
-        # print(acc_ends)
-
 
         ## Now solve Kinetic equations by starting with forces at last link and going backwards
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
-        Wrenches = [np.zeros((6,1))] * (self.n + 1)
+        Wrenches = np.zeros((6,self.n+1))
+        Wrenches[:, self.n] = Wext
         tau = [0] * self.n
 
-        # for i in range(self.n - 1, -1, -1):  # Index from n-1 to 0
+        for i in range(self.n - 1, -1, -1):  # Index from n-1 to 0
+            T_i1_i = self.fk(q, index=(i, i+1))
+            R_i_i1 = T_i1_i[:3, :3].T
 
-        #     R_i_i1 = self.fk(q, index=(i, i+1))[:3, :3]
-        #     g = self.fk(q, index=i)[:3, :3] @ np.array([0, -9.81, 0])
+            f1 = Wrenches[:3, i+1]
 
-        #     r_c = R_i0 @ self.r_com[jt_ind]
-        #     r_c1 = 
+            Rf1 = R_i_i1 @ f1
+            g_i = self.fk(q, index=i+1)[:3, :3].T @ g
 
-        #     r_c = R_i0 @ self.r_com[jt_ind]
-        #     r_e = R_i0 @ (self.r_com[jt_ind] * 2)
+            f = Rf1 - self.mass[i] * g_i + self.mass[i] * acc_coms[i]
 
+            # p = T_i1_i[:3, -1]
+            # r_c1 = (R_i_i1.T @ p + self.r_com[i])
+            # r_c = self.r_com[i]
 
-        #     w = omegas[i]
-        #     I = self.link_inertia[i]
+            # tau1 = Wrenches[3:, i+1]
 
-        #     f1 = Wrenches[:3, i+1]
-        #     f = R_i_i1 @ f1 - self.mass[i] * (g + acc_coms[i])
+            # w = omegas[i]
+            # I = self.link_inertia[i]
 
-        #     tau[i] = R_i_i1 @ tau[i+1] - np.cross(f, r_c1) + np.cross(R_i_i1 @ f1, r_c) \
-        #                 + I @ alphas[i] + np.cross(w, I @ w)
+            # Rtau = (R_i_i1.T @ tau1)
+            # f_cross_rc1 = np.cross(f, r_c1)
+            # Rf1_cross_rc = np.cross(Rf1, r_c)
+            # I_alpha = I @ alphas[i]
+            # w_cross_Iw = np.cross(w, I @ w)
 
-        #     Wrenches[i] = np.vstack(f, tau[i])
-            
+            # tau[i] = Rtau - f_cross_rc1 + Rf1_cross_rc + I_alpha + w_cross_Iw
+
+            Wrenches[:3, i] = f
+            # Wrenches[3:, i] = tau[i]
+
+        
+        # print(Wrenches)
+
         return tau, Wrenches
 
 
