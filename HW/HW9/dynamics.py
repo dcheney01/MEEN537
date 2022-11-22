@@ -65,16 +65,27 @@ class SerialArmDyn(kin.SerialArm):
             jacob_com.append(sp.simplify(jacob_com_i.evalf()))
 
         M_EL = sp.zeros(self.n, self.n)
-        # TODO - use one for loop to implement symbolic code for M(q)
+        for i in range(self.n): # loop over every joint
+            R = T_jts[i][:3,:3]
+            M_EL += self.masses[i] * jacob_com[i][:3,:].T @ jacob_com[i][:3,:] + \
+                                jacob_com[i][-3:,:].T @ (R @ self.Is[i] @ R.T) @ jacob_com[i][-3:,:]
         
+
         C_EL = sp.zeros(self.n, self.n)
-        # TODO - use three nested for loops to implement symbolic code for C(q, qd)
+        for j in range(self.n):
+            for k in range(self.n):
+                for i in range(self.n):
+                    C_EL[k,j] += (M_EL[k, j].diff(self.q_sym[i]) + \
+                                  M_EL[k, i].diff(self.q_sym[j]) - \
+                                  M_EL[i, j].diff(self.q_sym[k])) * 0.5 * self.qd_sym[i]
 
         P = sp.Matrix([0])
-        # TODO - use one for loop to calculate P 
+        for i in range(self.n):
+            P += self.masses[i] * self.grav.T @ T_jts[i][:3,-1]
 
         G_EL = sp.zeros(3,1)
-        # TODO - use one for loop to calculate symbolic code for G(q)
+        for i in range(self.n):
+            G_EL[i] = P.diff(self.q_sym[i])
 
         self.M = sp.lambdify([q], M_EL, 'numpy')
         self.C = sp.lambdify([q, qd], C_EL, 'numpy')

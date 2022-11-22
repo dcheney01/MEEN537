@@ -1,10 +1,8 @@
 #%%
-import dynamics_key as dyn
+import dynamics as dyn
 import sympy as sp
 import numpy as np
 
-
-# %%
 # defining kinematic parameters for robot
 dh = [[0, 0, 0.4, 0],
      [0, 0, 0.4, 0],
@@ -73,3 +71,9 @@ print("Coriolis vector from E-L is:")
 print(C_EL)
 
 
+
+# %%
+G_EL = arm.G(q)
+print("Gravity vector from E-L is:")
+print(G_EL)
+# %%
