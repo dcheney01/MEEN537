@@ -81,11 +81,16 @@ class SerialArmDyn(kin.SerialArm):
 
         P = sp.Matrix([0])
         for i in range(self.n):
-            P += self.masses[i] * self.grav.T @ T_jts[i][:3,-1]
+            r_com_rel_base = T_jts[i][:3,:3] @ self.coms[i] + T_jts[i][:3,-1] 
+            P += self.masses[i] * self.grav.T @ r_com_rel_base
+
+        sp.pprint(sp.simplify(P))
 
         G_EL = sp.zeros(3,1)
         for i in range(self.n):
             G_EL[i] = P.diff(self.q_sym[i])
+
+        sp.pprint(sp.simplify(G_EL))
 
         self.M = sp.lambdify([q], M_EL, 'numpy')
         self.C = sp.lambdify([q, qd], C_EL, 'numpy')
