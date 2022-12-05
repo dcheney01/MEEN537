@@ -14,10 +14,8 @@ Marc Killpack, October 25, 2022
 import numpy as np
 from kinematics import SerialArm
 from utility import skew
-import transforms as tr
 
 eye = np.eye(4)
-
 
 class SerialArmDyn(SerialArm):
     """
@@ -48,13 +46,35 @@ class SerialArmDyn(SerialArm):
         else:
             self.B = np.diag(joint_damping)
 
+
+    def get_M(self, q):
+        M = np.zeros((self.n, self.n))
+
+        # calculating the mass matrix by iterating through RNE "n" times, and changing the location of the "1" entry in qdd
+        for i in range(self.n):
+            qdd = np.zeros((self.n, ))
+            qdd[i] = 1
+            tau, _ = self.rne(q, np.zeros((self.n,)), qdd)
+            M[:,i] = tau
+        return M
+
+    def get_G(self, q, grav):
+        G, _ = self.rne(q, np.zeros(3,), np.zeros(3,), g=grav)
+        return G
+
+    def get_C(self, q, qd):
+        C, _ = self.rne(q, qd, np.zeros(self.n,))
+        return C
+
+
+
     def rne(self, q, qd, qdd, 
-            Wext=np.zeros((6,1)),
-            g=np.zeros((3, )),
-            omega_base=np.zeros((3, 1)),
-            alpha_base=np.zeros((3, 1)),
-            v_base=np.zeros((3, 1)),
-            acc_base=np.zeros((3, 1))):
+            Wext=np.zeros((6,)),
+            g=np.zeros((3,)),
+            omega_base=np.zeros((3,)),
+            alpha_base=np.zeros((3,)),
+            v_base=np.zeros((3,)),
+            acc_base=np.zeros((3,))):
 
         """
         tau, W = RNE(q, qd, qdd):
@@ -65,9 +85,6 @@ class SerialArmDyn(SerialArm):
             qdd:
 
         Returns:
-            tau: torques or forces at joints (assuming revolute joints for now though)
-            wrenches: force and torque at each joint, and for joint i, the wrench is in frame i
-
 
         We start with the velocity and acceleration of the base frame, v0 and a0, and the joint positions, joint velocities,
         and joint accelerations (q, qd, qdd).
@@ -86,7 +103,8 @@ class SerialArmDyn(SerialArm):
         acc_ends = []
         acc_coms = []
 
-                # First we'll define some additional terms that we'll use in each iteration of the algorithm
+
+        # First we'll define some additional terms that we'll use in each iteration of the algorithm
         Rs = []  # List of Ri-1_i, rotation from i-1 to i in the i-1 frame
         R0s = []  # List of R0_i, rotation from 0 to i in the 0 frame
         rp2cs = []  # List of pi-1_i-1_i, vector from i-1 to i frame in frame i-1
@@ -109,17 +127,18 @@ class SerialArmDyn(SerialArm):
             R0 = self.fk(q, i+1)[0:3, 0:3]  # Find the transform from base to link i
             R0s.append(R0)
 
+
         ## Solve for needed angular velocities, angular accelerations, and linear accelerations
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         for i in range(0, self.n):
             if i == 0:  # If this is the first link instead of using the previous values we use the movement of the base
-                w_prev = (Rs[i].T @ omega_base).flatten()
-                alph_prev = (Rs[i].T @ alpha_base).flatten()
-                a_prev = (Rs[i].T @ acc_base).flatten()
+                w_prev = Rs[i].T @ omega_base
+                alph_prev = Rs[i].T @ alpha_base
+                a_prev = Rs[i].T @ acc_base
             else:  # Else, we just transform the values from the previous step
-                w_prev = (Rs[i].T @ omegas[i-1]).flatten()
-                alph_prev = (Rs[i].T @ alphas[i-1]).flatten()
-                a_prev = (Rs[i].T @ acc_ends[i-1]).flatten()
+                w_prev = Rs[i].T @ omegas[i-1]
+                alph_prev = Rs[i].T @ alphas[i-1]
+                a_prev = Rs[i].T @ acc_ends[i-1]
 
             # Find kinematics of the current link
             if self.jt[i] == 'r':
@@ -136,7 +155,7 @@ class SerialArmDyn(SerialArm):
             acc_coms.append(a_com)
             acc_ends.append(a_end)
 
-    ## Now solve Kinetic equations by starting with forces at last link and going backwards
+        ## Now solve Kinetic equations by starting with forces at last link and going backwards
         ## If helpful, you can define a function to call here so that you can debug the output more easily. 
         Wrenches = np.zeros((6, self.n,))
         tau = np.zeros((self.n,))
@@ -147,13 +166,13 @@ class SerialArmDyn(SerialArm):
 
                 # These are both positive assuming that we know the force applied to our end effector. If the
                 # wrench is what our robot is applying to the world, we need to negate these or Wext.
-                f_prev = (Rn_0 @ Wext[0:3]).flatten()
-                M_prev = (Rn_0 @ Wext[3:]).flatten()
+                f_prev = Rn_0 @ Wext[0:3]  
+                M_prev = Rn_0 @ Wext[3:]  
                 g_cur = Rn_0 @ g  # Convert the gravity to the right frame
             else:  # Use the previous forces in this case
                 Ri_0 = R0s[i].T
-                f_prev = (Rs[i+1] @ Wrenches[0:3,i+1]).flatten()
-                M_prev = (Rs[i+1] @ Wrenches[3:,i+1]).flatten()
+                f_prev = Rs[i+1] @ Wrenches[0:3,i+1]
+                M_prev = Rs[i+1] @ Wrenches[3:,i+1]
                 g_cur = Ri_0 @ g
 
             # Sum of forces and mass * acceleration to find forces
@@ -175,7 +194,6 @@ class SerialArmDyn(SerialArm):
             else:
                 print("you need to implement generalized for calculation for joint type:\t", self.jt[i])
 
-
         return tau, Wrenches
 
 
@@ -183,23 +201,22 @@ class SerialArmDyn(SerialArm):
 if __name__ == '__main__':
 
     ## this just gives an example of how to define a robot, this is a planar 3R robot.
-    dh = [[0, 0, 1, 0],
-          [0, 0, 1, 0],
-          [0, 0, 1, 0]]
+    dh = [[0, 0, 0.4, 0],
+        [0, 0, 0.4, 0],
+        [0, 0, 0.4, 0]]
 
     joint_type = ['r', 'r', 'r']
 
     link_masses = [1, 1, 1]
 
     # defining three different centers of mass, one for each link
-    r_coms = [np.array([-0.5, 0, 0]), np.array([-0.5, 0, 0]), np.array([-0.5, 0, 0])]
+    r_coms = [np.array([-0.2, 0, 0]), np.array([-0.2, 0, 0]), np.array([-0.2, 0, 0])]
 
     link_inertias = []
     for i in range(len(joint_type)):
-        iner = link_masses[i] / 12 * dh[i][2]**2
-
-        # this inertia tensor is only defined as having Iyy, and Izz non-zero
-        link_inertias.append(np.array([[0, 0, 0], [0, iner, 0], [0, 0, iner]]))
+        iner = 0.01
+        # this inertia tensor is only defined as having Izz non-zero
+        link_inertias.append(np.array([[0, 0, 0], [0, 0, 0], [0, 0, iner]]))
 
 
     arm = SerialArmDyn(dh,
@@ -210,6 +227,6 @@ if __name__ == '__main__':
 
     # once implemented, you can call arm.RNE and it should work. 
     q = [np.pi/4.0]*3
-    qd = [0.2]*3
-    qdd = [0.05]*3
-    arm.rne(q, qd, qdd)
+    qd = [np.pi/6.0, -np.pi/4.0, np.pi/3.0]
+    qdd = [-pi/6.0, pi/3.0, pi/6.0]
+    arm.rne(q, qd, qdd, g=np.array([0, -9.81, 0]))
