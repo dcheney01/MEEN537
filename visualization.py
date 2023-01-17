@@ -192,7 +192,7 @@ class VizScene:
         self.range = 5
 
         if QApplication.instance() is None:
-            self.app = pg.QtGui.QApplication([])
+            self.app = QApplication([])
         else:
             self.app = QApplication.instance()
         self.window = gl.GLViewWidget()
