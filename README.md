@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # MEEN 537: Robotic Manipulators
 
 A comprehensive graduate-level course at BYU covering fundamental concepts in robotic manipulator kinematics, dynamics, and control. This repository contains Python implementations of key robotics algorithms and homework assignments.
@@ -50,3 +51,8 @@ This coursework provides the foundation for:
 - Robotics research and development
 - Advanced manipulation planning
 - Real-time control system implementation
+=======
+# MEEN537 Robotic Manipulators
+
+Code for a graduate level class at BYU covering topics in transformations, jacobians, inverse kinematics, dynamics, and control of robotic manipulators
+>>>>>>> 82d64316b3456feaba7e5fd16208f6b2fa540535
